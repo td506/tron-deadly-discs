@@ -1,0 +1,16 @@
+# Cartridge addresses seen by jzIntv's attribute logger during play.
+# Merged by tools/trace_session.py; read by tools/disasm.py.
+code   503C 5043
+code   504C 5050
+code   5056 505B
+code   5069 506F
+code   5083 5083
+data   500C 500C
+data   5036 503B
+data   5044 504B
+data   5051 5055
+data   505C 5068
+data   5070 5082
+data   536D 5394
+data   551E 555A
+dbdata 5006 500B

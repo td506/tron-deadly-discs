@@ -16,13 +16,13 @@
 ;;  Colors (Hack.cfg)                                                       ;;
 ;; ------------------------------------------------------------------------ ;;
         IF MOD_COLORS
-        ORG     $50F9
+        ORG     Init_Tron               ; $50F9 attr word
         DECLE   $0055           ; Tron: light blue (retail $0042 red)
-        ORG     $5109
+        ORG     Init_TronDisc           ; $5109 attr word
         DECLE   $0081           ; Tron's disc: blue (retail $0086 yellow)
-        ORG     $5C2A
+        ORG     SpawnWave + $25         ; $5C2A: low word of MVII #$1855 (warrior attr)
         DECLE   $0054           ; Warriors: pink (retail $0055 light blue)
-        ORG     $5DB4
+        ORG     Init_EnemyDisc          ; $5DB4 attr word
         DECLE   $0080           ; Enemy discs: black (retail $0081 blue)
         ENDI
 
@@ -44,7 +44,7 @@
 ;;  First point-value tier = 10,000 (Hack.cfg)                              ;;
 ;; ------------------------------------------------------------------------ ;;
         IF MOD_POINT_TIER
-        ORG     $583C
+        ORG     PointsByLevel           ; $583C: level 0 entry
         DECLE   1000            ; retail 5
         ENDI
 
@@ -70,7 +70,7 @@
 ;;  Recognizer eye: remove shield graphic (Hack.cfg)                        ;;
 ;; ------------------------------------------------------------------------ ;;
         IF MOD_RECOG_NO_SHIELD
-        ORG     $531D
+        ORG     MobGraphics + 8 * $32   ; $531D: pictures $32-$33 (TypeRecogShield)
         DECLE   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
         ENDI
 
@@ -79,7 +79,7 @@
 ;; ------------------------------------------------------------------------ ;;
         IF MOD_RECOG_BIG_EYE
 ;;  Words $532F/$5337/$533F/$5347 (the eye's own rows) are left as-is.     ;;
-        ORG     $532D
+        ORG     MobGraphics + 8 * $34   ; $532D: pictures $34-$37 (TypeRecogEye)
         DECLE   $7E, $FF
         ORG     $5330
         DECLE   $FF, $FF, $FF
@@ -101,7 +101,7 @@
 ;;  "GAME OVER" -> "DEREZZED!" (Hack.cfg)                                   ;;
 ;; ------------------------------------------------------------------------ ;;
         IF MOD_DEREZZED
-        ORG     $5877
+        ORG     PrintGameOver + $0F     ; $5877: the inline string
         STRING  "DEREZZED!"     ; same 9 words, existing $0000 terminator kept
         ENDI
 
@@ -111,6 +111,6 @@
 ;;  field (R1+5) is not 4.  Unknown whether this is a bad dump or a hack.   ;;
 ;; ------------------------------------------------------------------------ ;;
         IF MOD_TRONBIN_BRANCH
-        ORG     $56EB
+        ORG     HitTest + $1D           ; $56EB
         BNEQ    HitTest_No
         ENDI

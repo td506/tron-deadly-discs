@@ -12,7 +12,12 @@ labels.txt lines (fields are whitespace separated, '#' starts a comment line):
     data   5ABC-5ADF                 dis1600 data range (-d)
     code   5ABC  Name  [text]        label a ROM address; text goes on that line
     ram    015E  Name  [text]        name a RAM/IO address; text in the EQU block
+    ext    1629  Name  [text]        name an EXEC (BIOS) routine dis1600 left unnamed
     note   5ABC  text                comment line(s) placed above that address
+
+Unnamed branch labels (L_xxxx) inside a named routine become Routine_xxxx.
+src/coverage.txt (tools/trace_session.py) adds every executed run start as
+a dis1600 entry point.
 """
 import re
 import subprocess
@@ -24,6 +29,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import tron_build as tb  # noqa: E402
 
 LABELS = tb.SRC / "labels.txt"
+COVERAGE = tb.SRC / "coverage.txt"
 OUT = tb.SRC / "tron.asm"
 ADDR_COMMENT = re.compile(r";\s*([0-9A-F]{4})\b")
 LABEL_DEF = re.compile(r"^([.A-Za-z_][\w.]*):\s*$")
@@ -31,7 +37,7 @@ SYMBOL = re.compile(r"(?<![\w.$])(L_[0-9A-F]{4}|G_[0-9A-F]{4}|X_\w+|\.[A-Z][\w.]
 
 
 def read_labels():
-    hints = {"entry": [], "data": [], "code": {}, "ram": {}, "note": {}}
+    hints = {"entry": [], "data": [], "code": {}, "ram": {}, "ext": {}, "note": {}}
     for n, line in enumerate(LABELS.read_text().splitlines(), 1):
         if not line.strip() or line.lstrip().startswith("#"):
             continue
@@ -41,7 +47,7 @@ def read_labels():
         elif kind == "data":
             a, b = rest.split()[0].split("-")
             hints["data"].append((int(a, 16), int(b, 16)))
-        elif kind in ("code", "ram"):
+        elif kind in ("code", "ram", "ext"):
             addr, name, text = (rest.split(None, 2) + ["", ""])[:3]
             hints[kind][int(addr, 16)] = (name, text.strip())
         elif kind == "note":
@@ -49,7 +55,12 @@ def read_labels():
             hints["note"].setdefault(int(addr, 16), []).append(text.rstrip())
         else:
             sys.exit(f"labels.txt:{n}: unknown line kind '{kind}'")
-    names = [v[0] for v in list(hints["code"].values()) + list(hints["ram"].values())]
+    if COVERAGE.exists():
+        for line in COVERAGE.read_text().splitlines():
+            parts = line.split()
+            if len(parts) == 3 and parts[0] == "code":
+                hints["entry"].append(int(parts[1], 16))
+    names = [v[0] for k in ("code", "ram", "ext") for v in hints[k].values()]
     dupes = {x for x in names if names.count(x) > 1}
     if dupes:
         sys.exit("labels.txt: duplicate names: " + ", ".join(sorted(dupes)))
@@ -127,10 +138,75 @@ def generate():
     for sym, addr in external.items():
         if sym.startswith("G_") and addr in hints["ram"]:
             rename[sym] = hints["ram"][addr][0]
-    missing = [a for a in hints["code"] if a not in by_addr]
+        elif not sym.startswith(("G_", "L_")) and addr in hints["ext"]:
+            rename[sym] = hints["ext"][addr][0]
+    # unnamed branch labels take the name of the routine they sit in
+    owners = sorted(hints["code"].items())
+    for sym, addr in local.items():
+        if sym in rename or not sym.startswith("L_"):
+            continue
+        owner = [name for a, (name, _) in owners if a <= addr]
+        if owner:
+            rename[sym] = f"{owner[-1]}_{addr:04X}"
+
+    code_names = {a: n for a, (n, _) in hints["code"].items()}
+    ram_names = {a: n for a, (n, _) in hints["ram"].items()}
+    sdbd = [False]
+    pcrel = [None]
 
     def sub(text):
-        return SYMBOL.sub(lambda m: rename.get(m[1], m[1]), text)
+        """Rename symbols, name address-like immediates, realign comments."""
+        code, sep, comment = text.partition(";")
+        code = SYMBOL.sub(lambda m: rename.get(m[1], m[1]), code)
+        op = code.split()
+        imm = re.search(r"#\$([0-9A-F]{4})", code)
+        if imm and op:
+            val = int(imm[1], 16)
+            name = None
+            if sdbd[0] and val in code_names:
+                name = code_names[val]
+            elif op[0] in ("MVII", "CMPI") and val in ram_names:
+                name = ram_names[val]
+            if name:
+                code = code.replace(imm[0], "#" + name)
+        if pcrel[0] is not None and op[:1] == ["ADDI"] and imm:
+            target = pcrel[0] + int(imm[1], 16)
+            owner = [n for a, n in sorted(code_names.items()) if a <= target]
+            if owner:
+                base = max(a for a in code_names if a <= target)
+                off = target - base
+                comment += f"  -> {owner[-1]}" + (f"+{off}" if off else "")
+        pcrel[0] = None
+        if op[:1] == ["MOVR"] and op[1:2] == ["R7,"] and sep:
+            c = ADDR_COMMENT.search(sep + comment)
+            pcrel[0] = int(c[1], 16) + 1 if c else None
+        sdbd[0] = op[:1] == ["SDBD"]
+        if not sep:
+            return code
+        if code.strip():
+            code = code.rstrip()
+            code = f"{code:<47} " if len(code) < 48 else code + " "
+        return code + sep + comment
+
+    # drop dis1600's cross-reference trailer; split DECLE lines at named addresses
+    cut = next((i for i, l in enumerate(lines) if "Branch cross-reference" in l), None)
+    if cut is not None:
+        lines = lines[:cut - 1]
+    split = []
+    for line in lines:
+        m = re.match(r"(\s+DECLE\s+)([^;]+);\s*([0-9A-F]{4})\b(.*)", line)
+        if m:
+            words = [w.strip() for w in m[2].split(",") if w.strip()]
+            start = int(m[3], 16)
+            cuts = [i for i in range(1, len(words)) if start + i in hints["code"]
+                    or start + i in hints["note"]]
+            if cuts:
+                for a, b in zip([0] + cuts, cuts + [len(words)]):
+                    split.append(f"{m[1]}{', '.join(words[a:b]):<32}; {start + a:04X}")
+                continue
+        split.append(line)
+    lines = split
+    labelled = {local[s] for s in local}
 
     out = [
         ";; TRON Deadly Discs (Mattel, 1981) - retail CRC32 CA447BBD",
@@ -142,7 +218,9 @@ def generate():
     ]
     for sym, addr in sorted(external.items(), key=lambda kv: kv[1]):
         if not sym.startswith(("G_", "L_")):
-            out.append(f"{sym:<20} EQU     ${addr:04X}")
+            text = hints["ext"].get(addr, ("", ""))[1]
+            out.append(f"{rename.get(sym, sym):<20} EQU     ${addr:04X}"
+                       + (f"   ; {text}" if text else ""))
     out += ["", ";; ---- RAM ----"]
     ram = {addr: (rename.get(sym, sym), "") for sym, addr in external.items()
            if sym.startswith("G_")}
@@ -172,6 +250,9 @@ def generate():
                 if name not in seen:
                     out.append(f"{name}:")
                     seen.add(name)
+            if addr in hints["code"] and addr not in labelled:
+                out.append(f"{hints['code'][addr][0]}:")
+                labelled.add(addr)
             pending_labels = []
             if addr in hints["code"] and hints["code"][addr][1]:
                 line = f"{line}  {hints['code'][addr][1]}"
@@ -181,6 +262,7 @@ def generate():
         out.append(sub(line))
     out += ["", '        INCLUDE "mods.asm"', ""]
 
+    missing = [a for a in hints["code"] if a not in labelled]
     OUT.write_text("\n".join(out))
     for a in missing:
         print(f"warning: code label at ${a:04X} is not on an instruction/data start")

@@ -1,7 +1,285 @@
 # Names, comments and disassembly hints for src/tron.asm.
 # Format: see tools/disasm.py.  Regenerate: py tools/disasm.py
+#
+# Convention: a comment ending in "?" is inferred from reading the code and
+# not yet confirmed in play.  Object records and EXEC findings come from
+# disassembling the EXEC ROM (see README "Notes").
 
-# ---- Hit test (differs in tron.bin) ----
-code 56CE  HitTest
-code 56FA  HitTest_Yes
-code 56FC  HitTest_No
+# ======================================================================
+# Code/data hints for dis1600
+# ======================================================================
+data 5084-5085
+data 50F9-5394
+data 53BA-53C9
+data 5422-542D
+data 583C-584A
+data 591C-5927
+data 5BD7-5C04
+data 5D6E-5DED
+data 5F63-5F70
+data 5FE0-5FEF
+
+# ======================================================================
+# Cartridge header / EXEC hooks
+# ======================================================================
+code 5000 CartHeader       ; read by EXEC at power-up
+code 5014 HeaderExt        ; 8 words after the border colour; use unknown
+code 501C TimerTable       ; EXEC periodic tasks: handler, period (ticks)
+note 501C EXEC timer table: BIDECLE handler, then period.
+note 501C   $5E52 every 1    Tick1        $5DEE every 5    Tick5
+note 501C   $59AD every 200  Tick200A     $59D6 every 60   EnemyAI
+note 501C   $5AA3 every 200  Tick200B     $5E32 every 25   Tick25
+code 5036 TitleInfo
+code 503C TitleScreen      ; EXEC title hook: prints title text
+code 5084 Unused_5084      ; 2 unreferenced words
+
+# ======================================================================
+# Event handlers reached through descriptor / collision tables
+# ======================================================================
+code 5086 Evt_ResetDelay      ; stop objs 6-7, pick new spawn delay?
+code 5090 ResetDelay          ; $012B = 1..20 random; alarm off; stop SFX
+code 5098 ResetAlarm
+code 509F Evt_ClearEnemies    ; wipe enemy records 2-7; GAME OVER if flagged
+code 50C7 RecogDisc_Tick      ; per-tick handler of TypeRecogDisc?
+code 50F3 Evt_ToggleFlag10    ; flips bit $10 of a record's flags
+
+# ======================================================================
+# Object init blocks (X_INIT_MOBS / X_INIT_MOB) and descriptors
+# Record word 1 points at a 7-word descriptor:
+#   +0/+1 BIDECLE handler A, +2/+3 BIDECLE handler B (flags in bits 8-9),
+#   +4 frame count?, +5 first MOB picture (picture n = 8 words at
+#   MobGraphics + 8n), +6 ?  Disc descriptors are followed by collision tables
+#   of BIDECLE handlers.
+# ======================================================================
+code 50F9 Init_Tron           ; 16 words; attr $42 = red (colour: bits0-2 + bit4)
+code 5109 Init_TronDisc       ; 16 words; attr $86 = yellow
+code 5119 TypeTron            ; Tron, normal?
+code 5120 TypeTronBlock       ; Tron variant (block/hold?)
+code 5127 TypeDisc            ; thrown/held disc
+code 512E DiscCollide         ; disc collision table: HitTron / HitEnemy pairs
+code 513E TypeBigBoom         ; large explosion (Recognizer?)
+code 5145 TypeBoom            ; warrior derez/explosion?
+code 514C TypeDead            ; final stage of a kill: record is wiped
+code 5153 TypeRecogDisc       ; Tron's disc while the Recognizer is up?
+code 515A RecogDiscCollide    ; 5 collision handlers for TypeRecogDisc
+code 5164 TypeRecogBody       ; Recognizer objs 2-3 (pic $30)
+code 516B RecogBodyCollide
+code 516D TypeRecogShield     ; Recognizer obj 5: shield over the eye (pic $32)
+code 5174 RecogShieldCollide
+code 5176 TypeRecogEye        ; Recognizer obj 4: the eye (pic $34); B blinks it
+code 517D TypeRecogPart6      ; Recognizer obj 6 (pic $38)
+code 5184 RecogPart6Collide
+code 5186 TypeRecogPart7      ; Recognizer obj 7 (pic $3B)
+code 518D MobGraphics         ; EXEC MOB picture data (header ptr $5000)
+code 536D BgGraphics          ; EXEC background cards (header ptr $5006)
+
+# ======================================================================
+# Controller input (dispatched by EXEC through CtrlDispatch, $035D)
+# ======================================================================
+code 5395 OnDisc              ; R0 = disc direction 0-15, or <0 when released?
+code 53BA DiscSpeedTable      ; 16 entries, indexed by direction?
+code 53CA OnKey               ; keypad / side buttons: throw disc / block?
+code 5422 KeyActionTable      ; indexed by key code
+
+# ======================================================================
+# Object behaviours
+# ======================================================================
+code 542E Tron_HandlerB
+code 5437 SyncSpeedBytes      ; if speed hi!=lo: nudge X/Y by 5, state $50?
+code 5452 SetTronSpeedByLevel ; speed $0F/$14/$19 for level <8 / <14 / 14+
+code 5471 Disc_HandlerA
+code 547C Disc_Return         ; disc finished its flight: back to holder?
+code 547D Disc_ReturnNoPush
+code 5492 BigBoom_HandlerB
+code 54A0 MoveByDelta         ; scale/flip velocity, then set facing
+code 54A5 MoveByDeltaPush
+code 54A6 MoveByDeltaNoPush
+code 54C4 FindDoorSlot
+code 54C5 FindDoorSlotNoPush
+code 54DE Boom_HandlerB       ; re-init the pair's disc from Init_EnemyDisc?
+code 54ED Dead_HandlerB       ; zero the 8-word record (frees the object)
+code 54F5 IsFreeOrDead        ; C=1 if record R1 is empty or TypeDead
+code 5508 Evt_Recognizer508
+code 551E GramInit            ; EXEC GRAM init list (header ptr $5008)
+code 555B SetPairDirection    ; point pair $0165 in direction R0
+code 55D6 StoreSpeedIfMoving
+code 55E0 CatchDisc           ; disc returns to its owner: freeze it, sound
+code 5613 SetFacing           ; flip bit $0200 of both objects of the pair
+code 5630 HitTron             ; enemy disc hits Tron: drain energy, knock back?
+code 56C1 Evt_56C1            ; hit by Recognizer?
+code 56CE HitTest             ; C=1: the hit counts / C=0: ignore it
+code 56FA HitTest_Yes
+code 56FC HitTest_No
+code 5741 HitEnemy            ; Tron's disc hits an enemy: score, explode
+code 5755 StartBoom
+code 5790 Evt_Recognizer790
+code 57AB Evt_Recognizer7AB
+code 57E4 KillObject          ; set TypeDead, award points, count lives
+code 584B GameOver            ; sets GameOverFlag, clears objects
+code 5868 PrintGameOver
+code 5888 Evt_Recognizer888
+code 589D SetCtrlIdle         ; CtrlDispatch = EXEC default ($1906)
+code 58BB ToggleDoors         ; flip 3 wall doors (BACKTAB cards)?
+code 58F4 ResetDoors
+code 591C DoorCardTable       ; 12 BACKTAB addresses of wall door cards
+code 5928 FindInTable         ; search sorted coordinate table
+code 5999 SteerToward         ; steer obj R1 toward obj R2's position
+code 59AD Tick200A            ; random per-pair moods; sets $016E/$0129
+code 59D6 EnemyAI             ; every 60 ticks: steer enemies 1-3
+code 5AA3 Tick200B            ; spawn new enemy pairs, extra lives?
+code 5AC3 DistanceTo          ; R2 = distance from obj R1 to obj 0 (Tron)
+code 5ACF RecognizerAI
+code 5B37 Start               ; EXEC "start of game" hook
+code 5BD7 WallRowCards        ; arena drawing (Start): card numbers, 0-terminated
+code 5BDD WallRowAddrs        ; BACKTAB start of each 18-card horizontal wall
+code 5BE2 WallColCards        ; cards of the last column
+code 5BEC WallColAddrs        ; BACKTAB start of each vertical wall
+code 5BF3 WallColLens         ; lengths, 0-terminated, then last column length
+code 5BFB CtrlTable           ; controller dispatch: OnDisc, OnKey
+code 5C05 SpawnWave           ; place enemy pairs for the current level
+code 5D05 SpawnRecognizer
+code 5D6E SpawnLayouts        ; 4 layouts x 3 enemies x (X, Y, direction)
+code 5D92 EnemyKindRules      ; per pair: 2-bit enemy kinds by Level/5
+code 5DAD DiscVariants        ; enemy disc flag XORs: Double (orange) / Homing (yellow) discs, per Hack.cfg
+code 5DB4 Init_EnemyDisc      ; 16-word X_INIT_MOB block; attr $81 = blue
+code 5DC4 Init_Recognizer     ; 6 x (flags, type, velocity) for objs 2-7
+code 5DE8 RecogStartPos       ; 3 start positions, one picked at random
+code 5DEE Tick5               ; every 5 ticks: discs in flight steer?
+code 5E23 CardToPixel         ; BACKTAB offset -> packed X/Y
+code 5E32 Tick25              ; every 25 ticks: homing discs?
+code 5E52 Tick1               ; every tick: alarm sounds, wall/door checks
+code 5EF8 DoorHit
+code 5F04 DoorHitNoPush
+code 5F1A AddScore            ; score += R2; level up on thresholds; redraw
+code 5F63 LevelThresholds     ; x10 points needed to reach each level
+code 5F71 Sfx_Catch
+code 5F82 Sfx_CatchUcall      ; called from inside the Sfx_Catch script
+code 5F9B Sfx_Death
+code 5FA9 Sfx_Score
+code 5FBF Sfx_BigScore
+code 5FCC Sfx_Alarm1          ; low energy warning?
+code 5FDB Sfx_Alarm2
+
+code 583C PointsByLevel       ; points per kill, indexed by Level
+
+# ======================================================================
+# EXEC (BIOS) routines dis1600 does not name.  From disassembling exec.bin.
+# ======================================================================
+ext 141C X_141C               ; called with R0 = object index after a kill
+ext 1628 X_VEL_DIR_INLINE     ; as X_VEL_DIR, speed in the next word
+ext 1629 X_VEL_DIR            ; R0 = packed velocity for direction R1, speed R0
+ext 16CF X_MOTION_ON          ; set bit R0 in MotionMask
+ext 16D5 X_MOTION_OFF         ; clear bit R0 in MotionMask
+ext 16F7 X_NEAR_POINT         ; C=1 if obj R1 is within R4 (dx,dy) of point R2
+ext 1760 X_OBJ_EMPTY          ; Z=1 if record R1 has no descriptor
+ext 1772 X_OBJ_POS_N          ; R2,R3 = pixel X,Y of object R0
+ext 1777 X_OBJ_POS            ; R2,R3 = pixel X,Y of record R1
+ext 17A3 X_OBJ_DIST           ; distance between two objects
+ext 17AE X_OBJ_FREE           ; clear record R1's descriptor (remove object)
+ext 1820 X_1820               ; only seen inside graphics data (not code)
+ext 19A1 X_MOVE_TO            ; steer record R1 toward packed point R2, speed R3
+ext 19A3 X_MOVE_TO_C          ; same, other carry mode
+ext 1A2F X_DIR_FROM_DELTA     ; direction 0-15 from (dx, dy)
+ext 1C00 X_1C00               ; only seen inside graphics data (not code)
+
+# ======================================================================
+# RAM (scratch $0100-$01EF is 8-bit; system RAM $0200-$035F is 16-bit)
+# ======================================================================
+ram 0119 Var0119             ; set to $10 at start
+ram 011A MotionMask          ; EXEC: bit n set = object n moves
+ram 0129 Var0129             ; half of $016E
+ram 012B SpawnDelay          ; countdown until the next spawn?
+ram 012D Var012D
+ram 015D GameOverFlag        ; $FF once the game has ended
+ram 015E ArgA                ; scratch argument (object index)
+ram 015F ArgB                ; scratch argument (object index)
+ram 0160 Temp0160
+ram 0161 FindStep            ; step size for FindInTable
+ram 0162 BigBoomFlag
+ram 0163 TronDiscOut         ; nonzero while Tron's disc is thrown (HitEnemy only scores then)
+ram 0164 Temp0164
+ram 0165 CurPair             ; pair being processed: 0 = Tron, 1-3 = enemies
+ram 0166 Lives               ; 3 at start
+ram 0167 EnemyKind           ; [3] pair 1-3: Warrior / Leader / Bulldog (per Hack.cfg colours); $C0 special
+ram 016A EnemyMood           ; [3] AI mode for pair 1-3
+ram 016D Level               ; 0-14; indexes PointsByLevel / LevelThresholds
+ram 016E Aggression          ; $C8 minus distances of enemies?
+ram 016F EnemiesLeft         ; pairs still to spawn this wave?
+ram 0170 Var0170
+ram 0171 LastObjChecked      ; Tick1 checks objects 0..this
+ram 0172 RecogPending        ; $FF: Recognizer comes next
+ram 0173 RecogActive
+ram 0174 DoorIndex
+ram 0175 Var0175
+ram 0176 AlarmMode           ; Tick1 dispatch: 0 none, 1, 2
+ram 0177 DoorCount           ; >6 brings the Recognizer
+ram 0178 Var0178
+ram 0317 ScoreHi             ; score = ScoreHi*10000 + ScoreLo
+ram 0318 ScoreLo
+ram 035D CtrlDispatch        ; EXEC: pointer to controller handler table
+
+# ---- object records: 8 words each at $031D + 8n (EXEC layout) ----
+ram 031D Obj0_Flags    Tron; attr/flags; bit $0200 = facing
+ram 031E Obj0_Type     descriptor pointer, 0 = free slot
+ram 031F Obj0_X        8.8 fixed: pixel in high byte
+ram 0320 Obj0_Y        8.8 fixed
+ram 0321 Obj0_Vel      packed velocity (hi=dx, lo=dy)
+ram 0322 Obj0_State    4 = ?; 9 = knocked back?
+ram 0323 Obj0_Timer
+ram 0324 Obj0_Speed    hi/lo bytes
+ram 0325 Obj1_Flags    Tron disc; attr/flags; bit $0200 = facing
+ram 0326 Obj1_Type     descriptor pointer, 0 = free slot
+ram 0327 Obj1_X        8.8 fixed: pixel in high byte
+ram 0328 Obj1_Y        8.8 fixed
+ram 0329 Obj1_Vel      packed velocity (hi=dx, lo=dy)
+ram 032A Obj1_State    4 = ?; 9 = knocked back?
+ram 032B Obj1_Timer
+ram 032C Obj1_Speed    hi/lo bytes
+ram 032D Obj2_Flags    enemy 1; attr/flags; bit $0200 = facing
+ram 032E Obj2_Type     descriptor pointer, 0 = free slot
+ram 032F Obj2_X        8.8 fixed: pixel in high byte
+ram 0330 Obj2_Y        8.8 fixed
+ram 0331 Obj2_Vel      packed velocity (hi=dx, lo=dy)
+ram 0332 Obj2_State    4 = ?; 9 = knocked back?
+ram 0333 Obj2_Timer
+ram 0334 Obj2_Speed    hi/lo bytes
+ram 0335 Obj3_Flags    enemy 1 disc; attr/flags; bit $0200 = facing
+ram 0336 Obj3_Type     descriptor pointer, 0 = free slot
+ram 0337 Obj3_X        8.8 fixed: pixel in high byte
+ram 0338 Obj3_Y        8.8 fixed
+ram 0339 Obj3_Vel      packed velocity (hi=dx, lo=dy)
+ram 033A Obj3_State    4 = ?; 9 = knocked back?
+ram 033B Obj3_Timer
+ram 033C Obj3_Speed    hi/lo bytes
+ram 033D Obj4_Flags    enemy 2 / Recognizer?; attr/flags; bit $0200 = facing
+ram 033E Obj4_Type     descriptor pointer, 0 = free slot
+ram 033F Obj4_X        8.8 fixed: pixel in high byte
+ram 0340 Obj4_Y        8.8 fixed
+ram 0341 Obj4_Vel      packed velocity (hi=dx, lo=dy)
+ram 0342 Obj4_State    4 = ?; 9 = knocked back?
+ram 0343 Obj4_Timer
+ram 0344 Obj4_Speed    hi/lo bytes
+ram 0345 Obj5_Flags    enemy 2 disc; attr/flags; bit $0200 = facing
+ram 0346 Obj5_Type     descriptor pointer, 0 = free slot
+ram 0347 Obj5_X        8.8 fixed: pixel in high byte
+ram 0348 Obj5_Y        8.8 fixed
+ram 0349 Obj5_Vel      packed velocity (hi=dx, lo=dy)
+ram 034A Obj5_State    4 = ?; 9 = knocked back?
+ram 034B Obj5_Timer
+ram 034C Obj5_Speed    hi/lo bytes
+ram 034D Obj6_Flags    enemy 3; attr/flags; bit $0200 = facing
+ram 034E Obj6_Type     descriptor pointer, 0 = free slot
+ram 034F Obj6_X        8.8 fixed: pixel in high byte
+ram 0350 Obj6_Y        8.8 fixed
+ram 0351 Obj6_Vel      packed velocity (hi=dx, lo=dy)
+ram 0352 Obj6_State    4 = ?; 9 = knocked back?
+ram 0353 Obj6_Timer
+ram 0354 Obj6_Speed    hi/lo bytes
+ram 0355 Obj7_Flags    enemy 3 disc; attr/flags; bit $0200 = facing
+ram 0356 Obj7_Type     descriptor pointer, 0 = free slot
+ram 0357 Obj7_X        8.8 fixed: pixel in high byte
+ram 0358 Obj7_Y        8.8 fixed
+ram 0359 Obj7_Vel      packed velocity (hi=dx, lo=dy)
+ram 035A Obj7_State    4 = ?; 9 = knocked back?
+ram 035B Obj7_Timer
+ram 035C Obj7_Speed    hi/lo bytes
