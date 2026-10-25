@@ -112,5 +112,5 @@
 ;; ------------------------------------------------------------------------ ;;
         IF MOD_TRONBIN_BRANCH
         ORG     $56EB
-        BNEQ    L_56FC
+        BNEQ    HitTest_No
         ENDI

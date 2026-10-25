@@ -1,0 +1,7 @@
+# Names, comments and disassembly hints for src/tron.asm.
+# Format: see tools/disasm.py.  Regenerate: py tools/disasm.py
+
+# ---- Hit test (differs in tron.bin) ----
+code 56CE  HitTest
+code 56FA  HitTest_Yes
+code 56FC  HitTest_No
