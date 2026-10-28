@@ -17,7 +17,7 @@ import tron_build as tb  # noqa: E402
 
 TRACE = tb.BUILD / "trace"
 COVERAGE = tb.SRC / "coverage.txt"
-CHUNKS = 360            # x ~5 s = ~30 min
+CHUNKS = 120            # x ~5 s = ~10 min max; closing the window early is fine
 STEPS = 500000          # debugger 'r' count per chunk (~5 s real time)
 KINDS = ("code", "data", "dbdata")
 
@@ -70,10 +70,13 @@ def play():
     script = TRACE / "trace.txt"
     script.write_text("a\n" + f"r {STEPS}\nd\n" * CHUNKS + "q\n")
     bios = Path(paths["bios"])
-    subprocess.run([str(Path(paths["jzintv"]) / "jzintv.exe"), "-d", f"--script={script.name}",
-                    "-e", str(bios / "exec.bin"), "-g", str(bios / "grom.bin"),
-                    paths["retail_rom"]], cwd=TRACE, stdin=subprocess.DEVNULL,
-                   stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    p = subprocess.Popen([str(Path(paths["jzintv"]) / "jzintv.exe"), "-d",
+                          f"--script={script.name}", *tb.JZINTV_ARGS,
+                          "-e", str(bios / "exec.bin"), "-g", str(bios / "grom.bin"),
+                          paths["retail_rom"]], cwd=TRACE, stdin=subprocess.DEVNULL,
+                         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    tb.start_right_stick(p)
+    p.wait()
     merge()
 
 

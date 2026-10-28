@@ -145,13 +145,34 @@ def verify(log=print):
     return ok
 
 
+# jzIntv flags for every run; controller bindings are in tron.kbd.
+# SDL XInput axes: 0/1 left stick, 2 left trigger, 3/4 right stick, 5 right trigger.
+# noac: jzIntv's autocentering (on by default on Windows) drifts after a stick is
+# held, so a centred stick keeps reading as pushed and the controls lock up.
+# The right stick is claimed as JS0B only so tron.kbd can unbind it: jzIntv never
+# releases a stick direction that slides into the next, which jams keypad keys.
+# right_stick.py drives the throw keys from it instead.
+JZINTV_ARGS = ["-z640x400",           # window at 2x the default 320x200
+               "--js0a=noac",
+               "--js0b=xaxis=3,yaxis=4,noac",
+               f"--kbdhackfile={Path(__file__).with_name('tron.kbd')}"]
+
+
+def start_right_stick(jzintv):
+    """Run right_stick.py alongside a jzIntv process; it exits with jzIntv."""
+    return subprocess.Popen([sys.executable, str(Path(__file__).with_name("right_stick.py")),
+                             str(jzintv.pid)], creationflags=subprocess.CREATE_NO_WINDOW)
+
+
 def run(paths=None, rom=None):
     paths = paths or load_settings()[0]
     rom = rom or BUILD / "tron_mod.bin"
     bios = Path(paths["bios"])
-    return subprocess.Popen([str(Path(paths["jzintv"]) / "jzintv.exe"),
-                             "-e", str(bios / "exec.bin"), "-g", str(bios / "grom.bin"),
-                             str(rom)], cwd=BUILD)
+    p = subprocess.Popen([str(Path(paths["jzintv"]) / "jzintv.exe"), *JZINTV_ARGS,
+                          "-e", str(bios / "exec.bin"), "-g", str(bios / "grom.bin"),
+                          str(rom)], cwd=BUILD)
+    start_right_stick(p)
+    return p
 
 
 def main():

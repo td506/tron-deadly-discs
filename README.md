@@ -15,6 +15,15 @@ py tools/tron_build.py build --mods hack --run      # or none, or MOD_A,MOD_B
 The built ROM is `build/tron_mod.bin` + `.cfg`. Paths and the last selection are
 saved in `tron_settings.ini`.
 
+Controls (Xbox controller): left stick moves; **right stick** or D-pad throws in 8
+directions (TRON throws with the keypad); **A** blocks (keypad 5). `tools/tron.kbd`
+binds every controller input explicitly, so no jzIntv joystick defaults apply.
+The right stick is handled by `tools/right_stick.py` (started with jzIntv): jzIntv's
+own stick events never release a direction that slides into the next, which jams
+keypad keys and eventually pauses the game (1+9 held). Settings: `JZINTV_ARGS`. Quit Steam first (or turn off
+Steam Input for Xbox controllers): it turns the pad into keyboard/mouse input and
+steals focus, which leaves keys stuck in jzIntv.
+
 Requires jzIntv/SDK-1600 (`D:\RetroGames\tools\jzintv`, release 20200712) and the
 system ROMs `exec.bin` + `grom.bin` (path in `tron_settings.ini`).
 
