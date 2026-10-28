@@ -26,9 +26,11 @@ HACK_CFG = ROOT / "Tron Deadly Discs (Hack).cfg"
 RETAIL_SHA1 = "a84392c29a69a7bff5f1b521a0e836622405180a"   # CRC32 CA447BBD
 TRONBIN_SHA1 = "06e17a0dfe69e18999df061253416d3909b50bde"  # CRC32 FF8C6079
 
+# Defaults: jzIntv and the BIOS unpacked inside this folder.  Point these
+# anywhere else in tron_settings.ini ([paths] section).
 DEFAULT_PATHS = {
-    "jzintv": r"D:\RetroGames\tools\jzintv\bin",
-    "bios": r"D:\RetroGames\Intv\Intellivision BIOS Set\Intellivision BIOS Set",
+    "jzintv": str(ROOT / "jzintv" / "bin"),
+    "bios": str(ROOT / "bios"),
     "retail_rom": str(ROOT / "TRON-Deadly-Discs_Intellivision_EN"
                       / "TRON - Deadly Discs (1981)(Mattel).bin"),
     "tronbin_rom": str(ROOT / "tron.bin"),
@@ -79,6 +81,9 @@ def sha1(data):
 def assemble(mods, stem="tron_mod", paths=None):
     """Assemble with the given MOD_* switches on; return the .bin bytes."""
     paths = paths or load_settings()[0]
+    if not (SRC / "tron.asm").exists():     # generated from the user's own ROM
+        import disasm
+        disasm.main()
     unknown = set(mods) - set(MOD_NAMES)
     if unknown:
         raise ValueError("unknown mods: " + ", ".join(sorted(unknown)))

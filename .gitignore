@@ -1,5 +1,5 @@
-# Only what is listed here is tracked: ROMs, downloads, builds and
-# personal settings stay out of the repository.
+# Only what is listed here is tracked: ROMs, BIOS, jzIntv, downloads, builds
+# and personal settings stay out of the repository.
 /*
 !/.gitignore
 !/.gitattributes
@@ -8,3 +8,5 @@
 !/src/
 !/tools/
 __pycache__/
+# Generated from your own ROM by tools/disasm.py (it is the whole game).
+/src/tron.asm
