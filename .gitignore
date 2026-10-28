@@ -4,6 +4,7 @@
 !/.gitignore
 !/.gitattributes
 !/README.md
+!/LICENSE
 !/launch_tron.bat
 !/src/
 !/tools/

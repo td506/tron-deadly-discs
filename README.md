@@ -140,3 +140,10 @@ EXEC routine names (`X_VEL_DIR`, `X_MOTION_ON`, ...) come from disassembling
 2. Test the `$56EB` variant in play to see what it changes.
 3. Map gameplay in detail: disc physics, enemy kinds and AI, waves, Recognizer.
 4. New mods on top of that map.
+
+## License
+
+The tools, labels, mods and docs in this repository are MIT licensed (see
+`LICENSE`). That covers this project's own work only: TRON Deadly Discs, the
+Intellivision EXEC/GROM and jzIntv belong to their respective owners, and none
+of them are included here.
