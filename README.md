@@ -141,6 +141,13 @@ EXEC routine names (`X_VEL_DIR`, `X_MOTION_ON`, ...) come from disassembling
 3. Map gameplay in detail: disc physics, enemy kinds and AI, waves, Recognizer.
 4. New mods on top of that map.
 
+## Credits
+
+The mods marked "Hack.cfg" in `src/mods.asm` (recolors, big starting score,
+first point tier, Recognizer without shield / bigger eye, DEREZZED!) recreate the
+`[macro]` patches in "Tron Deadly Discs (Hack).cfg", a jzIntv config found online
+with no author named. If it's yours, open an issue and it will be credited here.
+
 ## License
 
 The tools, labels, mods and docs in this repository are MIT licensed (see
