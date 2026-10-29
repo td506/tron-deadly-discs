@@ -71,7 +71,7 @@ def play():
     script.write_text("a\n" + f"r {STEPS}\nd\n" * CHUNKS + "q\n")
     bios = Path(paths["bios"])
     p = subprocess.Popen([str(Path(paths["jzintv"]) / "jzintv.exe"), "-d",
-                          f"--script={script.name}", *tb.JZINTV_ARGS,
+                          f"--script={script.name}", *tb.jzintv_args(),
                           "-e", str(bios / "exec.bin"), "-g", str(bios / "grom.bin"),
                           paths["retail_rom"]], cwd=TRACE, stdin=subprocess.DEVNULL,
                          stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)

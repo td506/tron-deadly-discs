@@ -68,6 +68,7 @@ def load_settings():
 def save_settings(paths, mods):
     cp = configparser.ConfigParser()
     cp.optionxform = str
+    cp.read(SETTINGS)                       # keep [options]
     cp["paths"] = paths
     cp["mods"] = {m: "1" if m in mods else "0" for m in MOD_NAMES}
     with open(SETTINGS, "w") as f:
@@ -157,10 +158,97 @@ def verify(log=print):
 # The right stick is claimed as JS0B only so tron.kbd can unbind it: jzIntv never
 # releases a stick direction that slides into the next, which jams keypad keys.
 # right_stick.py drives the throw keys from it instead.
-JZINTV_ARGS = ["-z640x400",           # window at 2x the default 320x200
-               "--js0a=noac",
-               "--js0b=xaxis=3,yaxis=4,noac",
-               f"--kbdhackfile={Path(__file__).with_name('tron.kbd')}"]
+CONTROLLER_ARGS = ["--js0a=noac",
+                   "--js0b=xaxis=3,yaxis=4,noac",
+                   f"--kbdhackfile={Path(__file__).with_name('tron.kbd')}"]
+
+# Display choices: label -> jzIntv window size (the game draws 320x200).
+# "Fullscreen" uses the desktop resolution, so the monitor does not switch modes.
+DISPLAYS = {
+    "Window 2x (640 x 400)": "640x400",
+    "Window 3x (960 x 600)": "960x600",
+    "Window 4x (1280 x 800)": "1280x800",
+    "Fullscreen": None,
+}
+# Pixel smoothing: label -> jzIntv --prescale number
+SMOOTHING = {"Off (sharp pixels)": 0, "Scale2x": 1, "Scale3x": 2}
+
+DEFAULT_OPTIONS = {"display": "Window 2x (640 x 400)", "smoothing": "Off (sharp pixels)",
+                   "right_stick": "1"}
+
+
+def load_options():
+    """[options] from tron_settings.ini (display, smoothing, right_stick)."""
+    cp = configparser.ConfigParser()
+    cp.optionxform = str
+    cp.read(SETTINGS)
+    options = dict(DEFAULT_OPTIONS)
+    if cp.has_section("options"):
+        options.update(cp["options"])
+    if options["display"] not in DISPLAYS:
+        options["display"] = DEFAULT_OPTIONS["display"]
+    if options["smoothing"] not in SMOOTHING:
+        options["smoothing"] = DEFAULT_OPTIONS["smoothing"]
+    return options
+
+
+def save_options(options):
+    cp = configparser.ConfigParser()
+    cp.optionxform = str
+    cp.read(SETTINGS)
+    cp["options"] = options
+    with open(SETTINGS, "w") as f:
+        cp.write(f)
+
+
+def desktop_size():
+    """Physical desktop resolution, whatever the Windows scaling setting."""
+    import ctypes
+    user32, gdi32 = ctypes.windll.user32, ctypes.windll.gdi32
+    dc = user32.GetDC(None)
+    try:
+        return gdi32.GetDeviceCaps(dc, 118), gdi32.GetDeviceCaps(dc, 117)  # DESKTOPHORZRES/VERTRES
+    finally:
+        user32.ReleaseDC(None, dc)
+
+
+def jzintv_args(options=None):
+    """jzIntv flags for the chosen display and smoothing, plus the controller setup."""
+    options = options or load_options()
+    size = DISPLAYS[options["display"]]
+    if size:
+        display = [f"-z{size}", "-f0"]
+    else:
+        display = ["-z%dx%d" % desktop_size(), "-f1"]
+    return [*display, f"--prescale={SMOOTHING[options['smoothing']]}", *CONTROLLER_ARGS]
+
+
+EXEC_SHA1 = "5a65b922b562cb1f57dab51b73151283f0e20c7a"
+GROM_SHA1 = "f9608bb4ad1cfe3640d02844c7ad8e0bcd974917"
+
+
+def check_paths(paths):
+    """{'jzintv'|'bios'|'retail_rom': problem or ''} for the launcher's file checks."""
+    def file_sha1(p):
+        return sha1(p.read_bytes()) if p.is_file() else None
+
+    jz = Path(paths["jzintv"])
+    missing = [n for n in ("jzintv.exe", "as1600.exe", "dis1600.exe") if not (jz / n).is_file()]
+    bios = Path(paths["bios"])
+    bios_problems = []
+    for name, want in (("exec.bin", EXEC_SHA1), ("grom.bin", GROM_SHA1)):
+        got = file_sha1(bios / name)
+        if got is None:
+            bios_problems.append(f"no {name}")
+        elif got != want:
+            bios_problems.append(f"{name} is not the standard dump")
+    rom = file_sha1(Path(paths["retail_rom"]))
+    return {
+        "jzintv": "missing " + ", ".join(missing) if missing else "",
+        "bios": "; ".join(bios_problems),
+        "retail_rom": ("file not found" if rom is None
+                       else "" if rom == RETAIL_SHA1 else "not the retail ROM (CRC32 CA447BBD)"),
+    }
 
 
 def start_right_stick(jzintv):
@@ -169,14 +257,16 @@ def start_right_stick(jzintv):
                              str(jzintv.pid)], creationflags=subprocess.CREATE_NO_WINDOW)
 
 
-def run(paths=None, rom=None):
+def run(paths=None, rom=None, options=None):
     paths = paths or load_settings()[0]
+    options = options or load_options()
     rom = rom or BUILD / "tron_mod.bin"
     bios = Path(paths["bios"])
-    p = subprocess.Popen([str(Path(paths["jzintv"]) / "jzintv.exe"), *JZINTV_ARGS,
+    p = subprocess.Popen([str(Path(paths["jzintv"]) / "jzintv.exe"), *jzintv_args(options),
                           "-e", str(bios / "exec.bin"), "-g", str(bios / "grom.bin"),
                           str(rom)], cwd=BUILD)
-    start_right_stick(p)
+    if options["right_stick"] == "1":
+        start_right_stick(p)
     return p
 
 

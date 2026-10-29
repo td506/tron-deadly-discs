@@ -76,6 +76,10 @@ def read_stick():
     return None
 
 
+def controller_connected():
+    return read_stick() is not None
+
+
 def main():
     pid = int(sys.argv[1])
     proc = kernel32.OpenProcess(0x00100000, False, pid)     # SYNCHRONIZE

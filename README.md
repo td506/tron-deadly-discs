@@ -1,10 +1,22 @@
-# TRON Deadly Discs mods
+# TRON Deadly Discs, modernized
 
 Intellivision, Mattel 1981. Retail ROM: 4K words at `$5000-$5FFF`, CRC32 `CA447BBD`.
 
-Labelled disassembly, a mod builder and a working Xbox-controller setup for
-playing it in the jzIntv emulator. **No game or BIOS files are included**: you
-supply your own, and the disassembly (`src/tron.asm`) is generated from your ROM.
+The goal: play a 1981 cartridge the way you'd expect to play a game today.
+One launcher window sets everything up and starts the game:
+
+- **Modern controls.** An Xbox-style controller works out of the box: left stick
+  moves, right stick throws the disc. The original needs a 12-button keypad
+  for that, which jzIntv's stock bindings handle badly.
+- **Display options.** Window size, fullscreen, and pixel smoothing.
+- **Optional mods.** Recolors, Recognizer tweaks, scoring changes and more, each
+  one a checkbox. With no mods ticked, the build is byte-for-byte the retail
+  game.
+- **A labelled disassembly** that every mod is built from, so new tweaks can be
+  written as source rather than raw byte patches.
+
+**No game or BIOS files are included**: you supply your own, and the disassembly
+(`src/tron.asm`) is generated from your ROM.
 
 ## What you need
 
@@ -21,7 +33,9 @@ supply your own, and the disassembly (`src/tron.asm`) is generated from your ROM
 
 ## Setup
 
-By default the tools look for these inside this folder:
+The launcher's **Files** box shows whether each file was found and has the
+right hash. Use **Browse...** to point at them. By default it looks inside
+this folder:
 
 | File | Default location |
 |---|---|
@@ -29,30 +43,32 @@ By default the tools look for these inside this folder:
 | `exec.bin`, `grom.bin` | `bios/` |
 | Cartridge ROM | `TRON-Deadly-Discs_Intellivision_EN/TRON - Deadly Discs (1981)(Mattel).bin` |
 
-To keep them elsewhere, create `tron_settings.ini` next to this README:
-
-```ini
-[paths]
-jzintv = C:\path\to\jzintv\bin
-bios = C:\path\to\bios
-retail_rom = C:\path\to\tron.bin
-```
+Paths you pick are saved in `tron_settings.ini` (`[paths]`) next to this README.
 
 The first build generates `src/tron.asm` from your ROM and checks that it
 reassembles to the exact same bytes.
 
 ## Run
 
-`launch_tron.bat` opens a window: tick mods, then **Build & Run**. **Verify** checks
-the source still rebuilds the known ROMs. From a shell:
+Double-click `launch_tron.bat`. The launcher window has:
+
+| Section | Options |
+|---|---|
+| Mods | Look, Scoring and Variant mods with a description of each; **Retail** and **Hack.cfg preset** buttons |
+| Display and controller | Window 2x / 3x / 4x or fullscreen (at your desktop resolution); pixel smoothing (off, Scale2x, Scale3x); right stick throws on/off; whether a controller is connected |
+| Files | jzIntv, BIOS and cartridge ROM, each checked |
+
+**Play** (or Enter) builds the ROM with the ticked mods and starts jzIntv.
+**Verify** checks that the source still rebuilds the known ROMs. Everything is
+remembered in `tron_settings.ini`. From a shell:
 
 ```
 py tools/tron_build.py verify
 py tools/tron_build.py build --mods hack --run      # or none, or MOD_A,MOD_B
 ```
 
-The built ROM is `build/tron_mod.bin` + `.cfg`. Paths and the last selection are
-saved in `tron_settings.ini`.
+The built ROM is `build/tron_mod.bin` + `.cfg`. A shell `run` uses the display
+and controller options last saved by the launcher.
 
 ## Controls (Xbox controller)
 
@@ -90,8 +106,9 @@ How it works, for anyone adapting it:
 | `src/mods.asm` | One `IF MOD_x` block per mod, ORG'd over retail words |
 | `tools/disasm.py` | dis1600 + labels.txt -> `src/tron.asm`, then checks it rebuilds retail |
 | `tools/trace_session.py` | Play under jzIntv's attribute logger; merges into coverage.txt |
-| `tools/tron_build.py` | Assemble, verify, run |
-| `tools/tron_launcher.py` | Mod picker window |
+| `launch_tron.bat` | Opens the launcher (checks Python is installed) |
+| `tools/tron_build.py` | Assemble, verify, run; display/controller options; file checks |
+| `tools/tron_launcher.py` | The launcher window |
 | `tools/right_stick.py` | Right stick -> throw keys (see Controls) |
 | `tools/tron.kbd` | jzIntv controller bindings |
 | `tron.bin`, `Tron Deadly Discs (Hack).cfg` | Optional third-party files `verify` also checks against, if present; not included |
@@ -137,9 +154,10 @@ EXEC routine names (`X_VEL_DIR`, `X_MOTION_ON`, ...) come from disassembling
 ## Plan
 
 1. ~~Label the source.~~ Done; refine the `?` names with play traces.
-2. Test the `$56EB` variant in play to see what it changes.
-3. Map gameplay in detail: disc physics, enemy kinds and AI, waves, Recognizer.
-4. New mods on top of that map.
+2. ~~Launcher with controller, display and mod options.~~ Done.
+3. Test the `$56EB` variant in play to see what it changes.
+4. Map gameplay in detail: disc physics, enemy kinds and AI, waves, Recognizer.
+5. New mods on top of that map.
 
 ## Credits
 
