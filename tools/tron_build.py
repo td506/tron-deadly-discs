@@ -34,6 +34,7 @@ DEFAULT_PATHS = {
     "retail_rom": str(ROOT / "TRON-Deadly-Discs_Intellivision_EN"
                       / "TRON - Deadly Discs (1981)(Mattel).bin"),
     "tronbin_rom": str(ROOT / "tron.bin"),
+    "jzintv_test": "",      # optional second jzIntv bin folder, e.g. a build from source
 }
 
 # (symbol, label, description, on in Hack.cfg)
@@ -172,13 +173,16 @@ DISPLAYS = {
 }
 # Pixel smoothing: label -> jzIntv --prescale number
 SMOOTHING = {"Off (sharp pixels)": 0, "Scale2x": 1, "Scale3x": 2}
+# Which jzintv.exe Play starts: label -> [paths] key of its bin folder.
+# The assembler and disassembler always come from the stock folder.
+EMULATORS = {"Stock jzIntv": "jzintv", "Test build": "jzintv_test"}
 
 DEFAULT_OPTIONS = {"display": "Window 2x (640 x 400)", "smoothing": "Off (sharp pixels)",
-                   "right_stick": "1"}
+                   "right_stick": "1", "emulator": "Stock jzIntv"}
 
 
 def load_options():
-    """[options] from tron_settings.ini (display, smoothing, right_stick)."""
+    """[options] from tron_settings.ini (display, smoothing, right_stick, emulator)."""
     cp = configparser.ConfigParser()
     cp.optionxform = str
     cp.read(SETTINGS)
@@ -189,6 +193,8 @@ def load_options():
         options["display"] = DEFAULT_OPTIONS["display"]
     if options["smoothing"] not in SMOOTHING:
         options["smoothing"] = DEFAULT_OPTIONS["smoothing"]
+    if options["emulator"] not in EMULATORS:
+        options["emulator"] = DEFAULT_OPTIONS["emulator"]
     return options
 
 
@@ -228,7 +234,8 @@ GROM_SHA1 = "f9608bb4ad1cfe3640d02844c7ad8e0bcd974917"
 
 
 def check_paths(paths):
-    """{'jzintv'|'bios'|'retail_rom': problem or ''} for the launcher's file checks."""
+    """{'jzintv'|'bios'|'retail_rom'|'jzintv_test': problem or ''} for the launcher's file checks.
+    jzintv_test is optional: 'not set' is only a problem when the Test build is selected."""
     def file_sha1(p):
         return sha1(p.read_bytes()) if p.is_file() else None
 
@@ -243,7 +250,10 @@ def check_paths(paths):
         elif got != want:
             bios_problems.append(f"{name} is not the standard dump")
     rom = file_sha1(Path(paths["retail_rom"]))
+    test = paths.get("jzintv_test", "")
     return {
+        "jzintv_test": ("not set" if not test
+                        else "" if (Path(test) / "jzintv.exe").is_file() else "missing jzintv.exe"),
         "jzintv": "missing " + ", ".join(missing) if missing else "",
         "bios": "; ".join(bios_problems),
         "retail_rom": ("file not found" if rom is None
@@ -262,7 +272,11 @@ def run(paths=None, rom=None, options=None):
     options = options or load_options()
     rom = rom or BUILD / "tron_mod.bin"
     bios = Path(paths["bios"])
-    p = subprocess.Popen([str(Path(paths["jzintv"]) / "jzintv.exe"), *jzintv_args(options),
+    key = EMULATORS[options["emulator"]]
+    problem = check_paths(paths)[key]
+    if problem:
+        raise RuntimeError(f"{options['emulator']}: {problem} ({paths.get(key) or 'no folder chosen'})")
+    p = subprocess.Popen([str(Path(paths[key]) / "jzintv.exe"), *jzintv_args(options),
                           "-e", str(bios / "exec.bin"), "-g", str(bios / "grom.bin"),
                           str(rom)], cwd=BUILD)
     if options["right_stick"] == "1":

@@ -23,7 +23,9 @@ FILES = [  # (settings key, label, folder or file)
     ("jzintv", "jzIntv (bin folder)", "folder"),
     ("bios", "Intellivision BIOS", "folder"),
     ("retail_rom", "TRON cartridge ROM", "file"),
+    ("jzintv_test", "Test jzIntv build (optional, bin folder)", "folder"),
 ]
+OPTIONAL_FILES = {"jzintv_test"}
 
 
 class Launcher(tk.Tk):
@@ -87,6 +89,13 @@ class Launcher(tk.Tk):
         self.pad_status.grid(row=5, column=0, columnspan=2, sticky="w", padx=(20, 0), pady=(4, 0))
         self.poll_controller()
 
+        ttk.Label(opts, text="Emulator").grid(row=6, column=0, sticky="w", pady=(8, 0))
+        self.emulator = tk.StringVar(value=options["emulator"])
+        ttk.Combobox(opts, textvariable=self.emulator, values=list(tb.EMULATORS), state="readonly",
+                     width=26).grid(row=6, column=1, sticky="w", padx=(10, 0), pady=(8, 0))
+        ttk.Label(opts, foreground="gray", text="Test build: the jzIntv in the Files box's test folder.").grid(
+            row=7, column=1, sticky="w", padx=(10, 0))
+
         # Files the launcher needs, each with a found / problem line
         files = ttk.LabelFrame(body, text="Files", padding=8)
         files.grid(row=2, column=0, sticky="ew", pady=(8, 0))
@@ -123,7 +132,7 @@ class Launcher(tk.Tk):
 
     def options(self):
         return {"display": self.display.get(), "smoothing": self.smoothing.get(),
-                "right_stick": "1" if self.right_stick.get() else "0"}
+                "right_stick": "1" if self.right_stick.get() else "0", "emulator": self.emulator.get()}
 
     def update_smoothing_about(self):
         self.smoothing_about.config(text=SMOOTHING_ABOUT.get(self.smoothing.get(), ""))
@@ -153,9 +162,12 @@ class Launcher(tk.Tk):
         problems = tb.check_paths(self.paths)
         for key, label in self.file_status.items():
             problem = problems[key]
+            if key in OPTIONAL_FILES and problem == "not set":
+                label.config(text="Optional, not set", foreground="gray")
+                continue
             label.config(text=("OK  " if not problem else "Problem: " + problem + "  ") + self.paths[key],
                          foreground="green" if not problem else "red")
-        self.ready = not any(problems.values())
+        self.ready = not any(problems[k] for k in problems if k not in OPTIONAL_FILES)
 
     def work(self, fn):
         self.status.set("Working...")

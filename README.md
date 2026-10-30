@@ -55,8 +55,8 @@ Double-click `launch_tron.bat`. The launcher window has:
 | Section | Options |
 |---|---|
 | Mods | Look, Scoring and Variant mods with a description of each; **Retail** and **Hack.cfg preset** buttons |
-| Display and controller | Window 2x / 3x / 4x or fullscreen (at your desktop resolution); pixel smoothing (off, Scale2x, Scale3x); right stick throws on/off; whether a controller is connected |
-| Files | jzIntv, BIOS and cartridge ROM, each checked |
+| Display and controller | Window 2x / 3x / 4x or fullscreen (at your desktop resolution); pixel smoothing (off, Scale2x, Scale3x); right stick throws on/off; whether a controller is connected; emulator (stock jzIntv or a test build) |
+| Files | jzIntv, BIOS and cartridge ROM, each checked; optionally a second jzIntv bin folder to test, such as your own build from source |
 
 **Play** (or Enter) builds the ROM with the ticked mods and starts jzIntv.
 **Verify** checks that the source still rebuilds the known ROMs. Everything is
