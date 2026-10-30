@@ -155,9 +155,10 @@ EXEC routine names (`X_VEL_DIR`, `X_MOTION_ON`, ...) come from disassembling
 
 1. ~~Label the source.~~ Done; refine the `?` names with play traces.
 2. ~~Launcher with controller, display and mod options.~~ Done.
-3. Test the `$56EB` variant in play to see what it changes.
-4. Map gameplay in detail: disc physics, enemy kinds and AI, waves, Recognizer.
-5. New mods on top of that map.
+3. Next: `MOD_TRON_SPEED`, Tron runs 25% faster, enemies unchanged (see `docs/OPEN.md`).
+4. Test the `$56EB` variant in play to see what it changes.
+5. Map gameplay in detail: disc physics, enemy kinds and AI, waves, Recognizer.
+6. New mods on top of that map.
 
 ## Credits
 

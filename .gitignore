@@ -7,6 +7,7 @@
 !/LICENSE
 !/launch_tron.bat
 !/src/
+!/docs/
 !/tools/
 __pycache__/
 # Generated from your own ROM by tools/disasm.py (it is the whole game).
