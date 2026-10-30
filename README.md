@@ -94,7 +94,7 @@ How it works, for anyone adapting it:
   right-stick events are unbound and `tools/right_stick.py`, started alongside
   jzIntv, reads the right stick through XInput and sends one number key per flick.
 - jzIntv's stick autocentering (on by default on Windows) leaves a released stick
-  reading as pushed, so it is turned off (`JZINTV_ARGS` in `tools/tron_build.py`).
+  reading as pushed, so it is turned off (`CONTROLLER_ARGS` in `tools/tron_build.py`).
 
 ## Layout
 

@@ -279,6 +279,14 @@ def main():
     ap.add_argument("--run", action="store_true", help="start jzIntv after building")
     a = ap.parse_args()
     paths, mods = load_settings()
+    needed = ["jzintv", "retail_rom"]
+    if a.action == "run" or a.run:
+        needed.append("bios")
+    problems = check_paths(paths)
+    missing = [f"{k}: {problems[k]} ({paths[k]})" for k in needed if problems[k]]
+    if missing:
+        sys.exit("Files not ready (set them in the launcher or tron_settings.ini [paths]):\n  "
+                 + "\n  ".join(missing))
     if a.action == "verify":
         sys.exit(0 if verify() else 1)
     if a.action == "build":
