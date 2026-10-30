@@ -54,13 +54,13 @@ Double-click `launch_tron.bat`. The launcher window has:
 
 | Section | Options |
 |---|---|
-| Mods | Look, Scoring and Variant mods with a description of each; **Retail** and **Hack.cfg preset** buttons |
-| Display and controller | Window 2x / 3x / 4x or fullscreen (at your desktop resolution); pixel smoothing (off, Scale2x, Scale3x); right stick throws on/off; whether a controller is connected; emulator (stock jzIntv or a test build) |
-| Files | jzIntv, BIOS and cartridge ROM, each checked; optionally a second jzIntv bin folder to test, such as your own build from source |
+| Mods | Look, Scoring and Variant mods, each described; **Retail** and **Hack.cfg preset** buttons |
+| Display and controller | Window 2x/3x/4x or fullscreen; pixel smoothing (off, Scale2x, Scale3x); right-stick throws on/off; controller status; emulator (stock or a test build) |
+| Files | jzIntv, BIOS and cartridge ROM, each checked; optional test jzIntv folder |
 
 **Play** (or Enter) builds the ROM with the ticked mods and starts jzIntv.
-**Verify** checks that the source still rebuilds the known ROMs. Everything is
-remembered in `tron_settings.ini`. From a shell:
+**Verify** checks that the source still rebuilds the known ROMs. Settings are
+saved in `tron_settings.ini`. From a shell:
 
 ```
 py tools/tron_build.py verify
@@ -86,15 +86,13 @@ desktop and steals focus, which leaves keys stuck in jzIntv.
 
 How it works, for anyone adapting it:
 
-- `tools/tron.kbd` binds every controller input explicitly, so none of jzIntv's
-  built-in joystick defaults apply.
-- jzIntv's stick events never release a direction that slides into the next one.
-  That is fine for the disc (movement), but keypad keys stay held, pile up, and
-  once 1 and 9 are both held the EXEC pauses the game (black screen). So jzIntv's
-  right-stick events are unbound and `tools/right_stick.py`, started alongside
-  jzIntv, reads the right stick through XInput and sends one number key per flick.
-- jzIntv's stick autocentering (on by default on Windows) leaves a released stick
-  reading as pushed, so it is turned off (`CONTROLLER_ARGS` in `tools/tron_build.py`).
+- `tools/tron.kbd` binds every controller input explicitly.
+- jzIntv's stick events don't release the previous direction. Harmless for
+  movement, but keypad keys pile up, and 1+9 held together pauses the game. So the
+  right stick is read through XInput by `tools/right_stick.py`, which sends one
+  number key per flick.
+- Stick autocentering is off (`CONTROLLER_ARGS` in `tools/tron_build.py`): on
+  Windows it leaves a released stick reading as pushed.
 
 ## Layout
 
@@ -111,15 +109,14 @@ How it works, for anyone adapting it:
 | `tools/tron_launcher.py` | The launcher window |
 | `tools/right_stick.py` | Right stick -> throw keys (see Controls) |
 | `tools/tron.kbd` | jzIntv controller bindings |
+| `docs/OPEN.md` | Assumptions not yet confirmed, and how to settle each |
 | `tron.bin`, `Tron Deadly Discs (Hack).cfg` | Optional third-party files `verify` also checks against, if present; not included |
 
 Editing the disassembly: change `src/labels.txt`, run `py tools/disasm.py`. Gameplay
 changes go in `mods.asm`, not `tron.asm`.
 
-A `tron.bin` found online (CRC32 `FF8C6079`, alongside a disassembly made from it)
-differs from retail in one word: the branch at `$56EB` in `HitTest` goes to
-`HitTest_No` instead of `HitTest_Yes` when the target's `State` is not 4.
-`MOD_TRONBIN_BRANCH` restores the variant.
+A `tron.bin` found online (CRC32 `FF8C6079`) differs from retail in one word: the
+branch at `$56EB` in `HitTest`. `MOD_TRONBIN_BRANCH` reproduces it.
 
 ## Verified
 
@@ -155,7 +152,7 @@ EXEC routine names (`X_VEL_DIR`, `X_MOTION_ON`, ...) come from disassembling
 
 1. ~~Label the source.~~ Done; refine the `?` names with play traces.
 2. ~~Launcher with controller, display and mod options.~~ Done.
-3. Next: `MOD_TRON_SPEED`, Tron runs 25% faster, enemies unchanged (see `docs/OPEN.md`).
+3. Next: `MOD_TRON_SPEED`, Tron 25% faster, enemies unchanged.
 4. Test the `$56EB` variant in play to see what it changes.
 5. Map gameplay in detail: disc physics, enemy kinds and AI, waves, Recognizer.
 6. New mods on top of that map.
